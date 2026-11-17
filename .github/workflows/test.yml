@@ -64,7 +64,10 @@ jobs:
         run: |
           Install-PSResource -Name Microsoft.WinGet.Client -TrustRepository -Scope AllUsers -Quiet
           Import-Module Microsoft.WinGet.Client
-          Repair-WinGetPackageManager -AllUsers -Latest -Force
+          # Windows Server images can't take the App Installer bundle (0x80073CF1); keep the
+          # preinstalled winget there.
+          try { Repair-WinGetPackageManager -AllUsers -Latest -Force -ErrorAction Stop }
+          catch { Write-Warning "Couldn't update winget: $_" }
           winget --version
       - name: Validate the manifests
         shell: pwsh
@@ -76,10 +79,11 @@ jobs:
           # Warnings return a non-zero code too; only a failed validation should fail the job.
           if ($out -notmatch 'Manifest validation succeeded') { exit 1 }
       - name: Install with winget
+        timeout-minutes: 10
         shell: pwsh
         run: |
           winget settings --enable LocalManifestFiles
-          winget install --manifest $env:MANIFEST_DIR --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
+          winget install --manifest $env:MANIFEST_DIR --silent --accept-package-agreements --accept-source-agreements --disable-interactivity --verbose-logs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $arp = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue |
             Where-Object DisplayName -eq 'Akev'
@@ -88,7 +92,20 @@ jobs:
           if (-not (Test-Path "$env:LOCALAPPDATA\Akev")) { throw 'Not installed to %LocalAppData%\Akev' }
           Get-ChildItem "$env:LOCALAPPDATA\Akev" | Format-Table Name, Length
           winget list --name Akev --accept-source-agreements
+      - name: winget logs
+        if: failure() || cancelled()
+        shell: pwsh
+        run: |
+          Get-Process | Where-Object { $_.ProcessName -match 'akev|setup|winget|WindowsPackageManager|MicrosoftEdgeWebview|nsis' } |
+            Format-Table ProcessName, Id, StartTime, Path -AutoSize | Out-String -Width 300
+          $dir = "$env:LOCALAPPDATA\Packages\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe\LocalState\DiagOutputDir"
+          Get-ChildItem $dir -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 2 |
+            ForEach-Object { "== $($_.Name)"; Get-Content $_.FullName -Tail 80 }
+          Get-ItemProperty 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' -ErrorAction SilentlyContinue |
+            Select-Object pv, name | Format-List
+
       - name: Uninstall with winget
+        timeout-minutes: 10
         shell: pwsh
         run: |
           winget uninstall --name Akev --silent --accept-source-agreements --disable-interactivity
