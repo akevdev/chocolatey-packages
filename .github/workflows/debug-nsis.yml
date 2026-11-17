@@ -1,54 +1,37 @@
 name: debug-nsis
 
-# Temporary: runs the NSIS installer silently and watches what it does.
+# Temporary: installs Akev with winget and watches the processes it starts.
 
 on:
   workflow_dispatch:
 
 jobs:
-  nsis:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, windows-11-arm]
-    runs-on: ${{ matrix.os }}
+  winget:
+    runs-on: windows-latest
     timeout-minutes: 15
     steps:
-      - name: WebView2 present?
+      - uses: actions/checkout@v4
+      - name: winget install, watched
         shell: pwsh
         run: |
-          foreach ($k in 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
-                         'HKLM:\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
-                         'HKCU:\Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}') {
-            $v = Get-ItemProperty $k -ErrorAction SilentlyContinue
-            "$k -> $($v.pv)"
-          }
-      - name: Run the installer with /S and watch it
-        shell: pwsh
-        run: |
-          $arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'x64' }
-          $exe = "$env:RUNNER_TEMP\Akev_0.1.0_$arch-setup.exe"
-          Invoke-WebRequest "https://github.com/akevdev/akev/releases/download/v0.1.0/Akev_0.1.0_$arch-setup.exe" -OutFile $exe
+          winget --version
+          winget settings --enable LocalManifestFiles
+          $dir = (Get-ChildItem winget\manifests\a\Akev\Akev -Directory | Select-Object -First 1).FullName
           $start = Get-Date
-          $p = Start-Process $exe -ArgumentList '/S' -PassThru
-          for ($i = 0; $i -lt 30; $i++) {
+          $p = Start-Process winget -ArgumentList @('install', '--manifest', "`"$dir`"", '--silent',
+            '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity', '--verbose-logs') `
+            -PassThru -NoNewWindow -RedirectStandardOutput "$env:RUNNER_TEMP\winget.out"
+          for ($i = 0; $i -lt 18; $i++) {
             Start-Sleep 10
-            "--- t+$([int]((Get-Date) - $start).TotalSeconds)s exited=$($p.HasExited)"
+            "--- t+$([int]((Get-Date) - $start).TotalSeconds)s winget exited=$($p.HasExited)"
             Get-CimInstance Win32_Process | Where-Object { $_.CreationDate -gt $start } |
               ForEach-Object { "{0,-8} parent={1,-8} {2}  {3}" -f $_.ProcessId, $_.ParentProcessId, $_.Name, $_.CommandLine }
-            Get-Process | Where-Object { $_.MainWindowTitle } | ForEach-Object { "window: $($_.ProcessName): $($_.MainWindowTitle)" }
-            if ($p.HasExited) { "exit code $($p.ExitCode)"; break }
+            if ($p.HasExited) { "winget exit code $($p.ExitCode)"; break }
           }
-          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
-          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
-          $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
-          [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
-          $bmp.Save("$env:RUNNER_TEMP\screen.png")
-          Get-ChildItem "$env:LOCALAPPDATA\Akev" -ErrorAction SilentlyContinue | Format-Table Name, Length
+          "=== winget output"; Get-Content "$env:RUNNER_TEMP\winget.out" -ErrorAction SilentlyContinue | Select-Object -Last 20
+          $logs = "$env:LOCALAPPDATA\Packages\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe\LocalState\DiagOutputDir"
+          $log = Get-ChildItem $logs | Sort-Object LastWriteTime | Select-Object -Last 1
+          "=== $($log.Name)"; Get-Content $log.FullName | Select-String -NotMatch 'SystemComponent|Did not find an Id|Adding manifest for \[ARP' | Select-Object -Last 60
           Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue |
-            Where-Object DisplayName -eq 'Akev' | Format-List DisplayName, DisplayVersion, Publisher, InstallLocation, PSChildName
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: screen-${{ matrix.os }}
-          path: ${{ runner.temp }}/screen.png
+            Where-Object DisplayName -eq 'Akev' | Format-List DisplayName, InstallLocation, PSChildName
+          if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
