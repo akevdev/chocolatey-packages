@@ -11,6 +11,13 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - name: Install winget
+        shell: pwsh
+        run: |
+          Install-PSResource -Name Microsoft.WinGet.Client -TrustRepository -Scope AllUsers -Quiet
+          Import-Module Microsoft.WinGet.Client
+          Repair-WinGetPackageManager -AllUsers -Latest -Force
+          winget --version
       - name: winget install, watched
         shell: pwsh
         run: |
