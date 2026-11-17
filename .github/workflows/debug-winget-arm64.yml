@@ -21,21 +21,21 @@ jobs:
       - name: winget install, watched
         shell: pwsh
         run: |
-          New-Item -Force 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' | Out-Null
+          if (-not (Test-Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System')) { New-Item -Force 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' | Out-Null }
           Set-ItemProperty 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' EnableSmartScreen 0 -Type DWord
           Set-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer' SmartScreenEnabled 'Off'
           foreach ($hive in 'HKCU:', 'HKLM:') {
             $k = "$hive\Software\Microsoft\Windows\CurrentVersion\Policies\Attachments"
-            New-Item -Force $k | Out-Null
+            if (-not (Test-Path $k)) { New-Item -Force $k | Out-Null }
             Set-ItemProperty $k SaveZoneInformation 1 -Type DWord
           }
           # Internet zone: run programs and unsafe files without the "Open File" prompt; .exe low risk.
           foreach ($hive in 'HKCU:', 'HKLM:') {
             $z = "$hive\Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\3"
-            New-Item -Force $z -ErrorAction SilentlyContinue | Out-Null
+            if (-not (Test-Path $z)) { New-Item -Force $z | Out-Null }
             Set-ItemProperty $z 1806 0 -Type DWord
             $k = "$hive\Software\Microsoft\Windows\CurrentVersion\Policies\Associations"
-            New-Item -Force $k | Out-Null
+            if (-not (Test-Path $k)) { New-Item -Force $k | Out-Null }
             Set-ItemProperty $k LowRiskFileTypes '.exe;.msi' -Type String
           }
           "SmartAppControl: $((Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy' -ErrorAction SilentlyContinue).VerifiedAndReputablePolicyState)"
