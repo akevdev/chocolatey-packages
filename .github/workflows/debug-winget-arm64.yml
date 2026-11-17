@@ -29,6 +29,15 @@ jobs:
             New-Item -Force $k | Out-Null
             Set-ItemProperty $k SaveZoneInformation 1 -Type DWord
           }
+          # Internet zone: run programs and unsafe files without the "Open File" prompt; .exe low risk.
+          foreach ($hive in 'HKCU:', 'HKLM:') {
+            $z = "$hive\Software\Microsoft\Windows\CurrentVersion\Internet Settings\Zones\3"
+            New-Item -Force $z -ErrorAction SilentlyContinue | Out-Null
+            Set-ItemProperty $z 1806 0 -Type DWord
+            $k = "$hive\Software\Microsoft\Windows\CurrentVersion\Policies\Associations"
+            New-Item -Force $k | Out-Null
+            Set-ItemProperty $k LowRiskFileTypes '.exe;.msi' -Type String
+          }
           "SmartAppControl: $((Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy' -ErrorAction SilentlyContinue).VerifiedAndReputablePolicyState)"
           winget settings --enable LocalManifestFiles | Out-Null
           $dir = (Get-ChildItem winget\manifests\a\Akev\Akev -Directory | Select-Object -First 1).FullName
@@ -42,6 +51,19 @@ jobs:
             Get-CimInstance Win32_Process | Where-Object { $_.CreationDate -gt $start -and $_.Name -notmatch 'conhost|MpCmdRun|WmiPrvSE' } |
               ForEach-Object { "{0,-8} parent={1,-8} {2}  {3}" -f $_.ProcessId, $_.ParentProcessId, $_.Name, $_.CommandLine }
             Get-Process | Where-Object { $_.MainWindowTitle } | ForEach-Object { "window: $($_.ProcessName): $($_.MainWindowTitle)" }
+            if ($i -eq 3) {
+              Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+              $root = [System.Windows.Automation.AutomationElement]::RootElement
+              $all = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+              foreach ($e in $all) {
+                try {
+                  $pn = (Get-Process -Id $e.Current.ProcessId -ErrorAction Stop).ProcessName
+                  if ($pn -match 'winget|setup|smartscreen|consent|explorer|WindowsPackageManager') {
+                    "uia[$pn] $($e.Current.ControlType.ProgrammaticName) '$($e.Current.Name)' class=$($e.Current.ClassName)"
+                  }
+                } catch {}
+              }
+            }
             if ($p.HasExited) { "winget exit code $($p.ExitCode)"; break }
           }
           Add-Type -AssemblyName System.Windows.Forms, System.Drawing
