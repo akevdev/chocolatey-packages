@@ -86,6 +86,13 @@ jobs:
           New-Item -Force 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' | Out-Null
           Set-ItemProperty 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' EnableSmartScreen 0 -Type DWord
           Set-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer' SmartScreenEnabled 'Off'
+          # Don't mark downloads as coming from the internet, so there is nothing to check.
+          foreach ($hive in 'HKCU:', 'HKLM:') {
+            $k = "$hive\Software\Microsoft\Windows\CurrentVersion\Policies\Attachments"
+            New-Item -Force $k | Out-Null
+            Set-ItemProperty $k SaveZoneInformation 1 -Type DWord
+            Set-ItemProperty $k ScanWithAntiVirus 1 -Type DWord
+          }
       - name: Install with winget
         timeout-minutes: 10
         shell: pwsh
