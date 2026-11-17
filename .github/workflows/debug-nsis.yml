@@ -1,0 +1,54 @@
+name: debug-nsis
+
+# Temporary: runs the NSIS installer silently and watches what it does.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  nsis:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, windows-11-arm]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - name: WebView2 present?
+        shell: pwsh
+        run: |
+          foreach ($k in 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
+                         'HKLM:\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
+                         'HKCU:\Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}') {
+            $v = Get-ItemProperty $k -ErrorAction SilentlyContinue
+            "$k -> $($v.pv)"
+          }
+      - name: Run the installer with /S and watch it
+        shell: pwsh
+        run: |
+          $arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'x64' }
+          $exe = "$env:RUNNER_TEMP\Akev_0.1.0_$arch-setup.exe"
+          Invoke-WebRequest "https://github.com/akevdev/akev/releases/download/v0.1.0/Akev_0.1.0_$arch-setup.exe" -OutFile $exe
+          $start = Get-Date
+          $p = Start-Process $exe -ArgumentList '/S' -PassThru
+          for ($i = 0; $i -lt 30; $i++) {
+            Start-Sleep 10
+            "--- t+$([int]((Get-Date) - $start).TotalSeconds)s exited=$($p.HasExited)"
+            Get-CimInstance Win32_Process | Where-Object { $_.CreationDate -gt $start } |
+              ForEach-Object { "{0,-8} parent={1,-8} {2}  {3}" -f $_.ProcessId, $_.ParentProcessId, $_.Name, $_.CommandLine }
+            Get-Process | Where-Object { $_.MainWindowTitle } | ForEach-Object { "window: $($_.ProcessName): $($_.MainWindowTitle)" }
+            if ($p.HasExited) { "exit code $($p.ExitCode)"; break }
+          }
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+          [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+          $bmp.Save("$env:RUNNER_TEMP\screen.png")
+          Get-ChildItem "$env:LOCALAPPDATA\Akev" -ErrorAction SilentlyContinue | Format-Table Name, Length
+          Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue |
+            Where-Object DisplayName -eq 'Akev' | Format-List DisplayName, DisplayVersion, Publisher, InstallLocation, PSChildName
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screen-${{ matrix.os }}
+          path: ${{ runner.temp }}/screen.png
