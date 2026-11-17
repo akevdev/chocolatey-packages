@@ -1,0 +1,32 @@
+name: publish
+
+# Packs the Chocolatey package and pushes it to the Chocolatey Community Repository. Needs the
+# repository secret CHOCO_API_KEY (community.chocolatey.org → Account → API Keys); without it
+# the job only packs. New versions go through Chocolatey's moderation before they are public.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pack
+        shell: pwsh
+        run: choco pack akev\akev.nuspec --outputdirectory out
+      - name: Push
+        shell: pwsh
+        env:
+          CHOCO_API_KEY: ${{ secrets.CHOCO_API_KEY }}
+        run: |
+          if (-not $env:CHOCO_API_KEY) {
+            Write-Output 'CHOCO_API_KEY is not set: packed only, nothing pushed.'
+            exit 0
+          }
+          $pkg = Get-ChildItem out\akev.*.nupkg | Select-Object -First 1
+          choco push $pkg.FullName --source https://push.chocolatey.org/ --api-key $env:CHOCO_API_KEY
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

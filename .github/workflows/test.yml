@@ -1,0 +1,95 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  chocolatey:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, windows-11-arm]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Make sure Chocolatey is installed
+        shell: pwsh
+        run: |
+          if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
+            Set-ExecutionPolicy Bypass -Scope Process -Force
+            [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+            iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+            "$env:ProgramData\chocolatey\bin" >> $env:GITHUB_PATH
+          }
+      - name: Pack
+        shell: pwsh
+        run: choco pack akev\akev.nuspec --outputdirectory out
+      - name: Install
+        shell: pwsh
+        run: |
+          choco install akev --source "$env:GITHUB_WORKSPACE\out" -y --no-progress
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $arp = Get-ItemProperty 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' |
+            Where-Object DisplayName -eq 'Akev'
+          if (-not $arp) { throw 'No Akev entry in Programs and Features' }
+          $arp | Select-Object DisplayName, DisplayVersion, Publisher, InstallLocation, PSChildName | Format-List
+          Get-ChildItem "$env:ProgramFiles\Akev" | Format-Table Name, Length
+      - name: Uninstall
+        shell: pwsh
+        run: |
+          choco uninstall akev -y --no-progress
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $arp = Get-ItemProperty 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' |
+            Where-Object DisplayName -eq 'Akev'
+          if ($arp) { throw 'Akev is still installed' }
+
+  winget:
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+    runs-on: ${{ matrix.arch == 'arm64' && 'windows-11-arm' || 'windows-latest' }}
+    env:
+      MANIFEST: winget\manifests\a\Akev\Akev
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install winget
+        shell: pwsh
+        run: |
+          if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+            Install-PackageProvider -Name NuGet -Force | Out-Null
+            Install-Module Microsoft.WinGet.Client -Force -Repository PSGallery | Out-Null
+            Repair-WinGetPackageManager -AllUsers -Latest
+          }
+          winget --version
+      - name: Validate the manifests
+        shell: pwsh
+        run: |
+          $dir = (Get-ChildItem $env:MANIFEST -Directory | Select-Object -First 1).FullName
+          "MANIFEST_DIR=$dir" >> $env:GITHUB_ENV
+          winget validate --manifest $dir
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Install with winget
+        shell: pwsh
+        run: |
+          winget settings --enable LocalManifestFiles
+          winget install --manifest $env:MANIFEST_DIR --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $arp = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue |
+            Where-Object DisplayName -eq 'Akev'
+          if (-not $arp) { throw 'No per-user Akev entry in Programs and Features' }
+          $arp | Select-Object DisplayName, DisplayVersion, Publisher, InstallLocation, PSChildName | Format-List
+          if (-not (Test-Path "$env:LOCALAPPDATA\Akev")) { throw 'Not installed to %LocalAppData%\Akev' }
+          Get-ChildItem "$env:LOCALAPPDATA\Akev" | Format-Table Name, Length
+          winget list --name Akev --accept-source-agreements
+      - name: Uninstall with winget
+        shell: pwsh
+        run: |
+          winget uninstall --name Akev --silent --accept-source-agreements --disable-interactivity
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

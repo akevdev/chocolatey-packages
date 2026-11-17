@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>akev</id>
+    <version>0.1.0</version>
+    <packageSourceUrl>https://github.com/akevdev/chocolatey-packages/tree/main/akev</packageSourceUrl>
+    <owners>akevdev</owners>
+    <title>Akev</title>
+    <authors>Akev contributors</authors>
+    <projectUrl>https://akev.dev</projectUrl>
+    <iconUrl>https://cdn.jsdelivr.net/gh/akevdev/akev@v0.1.0/desktop/src-tauri/icons/128x128@2x.png</iconUrl>
+    <copyright>Akev contributors</copyright>
+    <licenseUrl>https://github.com/akevdev/akev/blob/main/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <projectSourceUrl>https://github.com/akevdev/akev</projectSourceUrl>
+    <docsUrl>https://akev.dev/docs</docsUrl>
+    <bugTrackerUrl>https://github.com/akevdev/akev/issues</bugTrackerUrl>
+    <tags>akev http https proxy debugging mitm har mock websocket grpc developer-tools foss cross-platform</tags>
+    <summary>Fast HTTP(S) debugging proxy to intercept, inspect, mock and replay traffic.</summary>
+    <description><![CDATA[Akev is an open-source HTTP(S) debugging proxy for developers, testers and security engineers. Launch a browser, terminal, Android device or container with one click and every request it makes shows up as it happens: headers, bodies, timings, TLS details and the app that sent it. Then change anything: mock responses, rewrite requests, map to local files, throttle the network or pause at breakpoints.
+
+## Features
+
+- One-click interception for Chrome, Edge, Firefox and other browsers, new terminals, Android over ADB, Docker, Electron apps and the system proxy
+- HTTP/1.1, HTTP/2, WebSockets, SSE, gRPC and protobuf, with optional HTTP/3 over QUIC
+- Rules that mock, rewrite, map, delay, throttle or block traffic, with live hit counters
+- Compose and replay requests, and export them as code for 20 languages
+- Import HAR, Charles, mitmproxy and Fiddler (.saz) captures
+- `akev capture -- <command>` runs tests through the proxy and writes a HAR, for CI
+- A built-in MCP server lets AI coding agents search captured traffic, with secrets redacted
+- No account and no telemetry
+
+Mocking, rewriting, breakpoints and HAR import and export are free. Akev Pro (a one-time licence) adds scripting, TLS fingerprint impersonation, WireGuard capture, transparent capture, JVM attach, protobuf schemas and an LLM traffic view; licence keys are checked offline.
+
+## Notes
+
+- This package installs the desktop app (MSI, all users). The x64 build is used on x64 Windows and the arm64 build on Windows on Arm.
+- The app updates itself after you confirm; `choco upgrade akev` works too.
+]]></description>
+    <releaseNotes>https://github.com/akevdev/akev/releases/tag/v0.1.0</releaseNotes>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

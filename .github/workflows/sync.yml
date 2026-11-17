@@ -1,0 +1,54 @@
+name: sync
+
+# Points the package at the latest Akev release (scripts/update.sh), after checking the
+# release's Sigstore-signed SHA256SUMS, then runs the tests and the publish workflow.
+# Runs every 6 hours and on demand.
+
+on:
+  schedule:
+    - cron: "29 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: sigstore/cosign-installer@v3
+      - name: Update from the latest release
+        id: update
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag=$(gh api repos/akevdev/akev/releases/latest --jq .tag_name)
+          released=$(gh api repos/akevdev/akev/releases/latest --jq .published_at | cut -c1-10)
+          version=${tag#v}
+          current=$(sed -n 's|.*<version>\(.*\)</version>.*|\1|p' akev/akev.nuspec)
+          if [ "$version" = "$current" ]; then
+            echo "Already at $version."
+            exit 0
+          fi
+          work=$(mktemp -d)
+          gh release download "$tag" -R akevdev/akev -D "$work" -p SHA256SUMS -p SHA256SUMS.sigstore.json
+          cosign verify-blob --bundle "$work/SHA256SUMS.sigstore.json" \
+            --certificate-identity-regexp 'github.com/akevdev/akev' \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com "$work/SHA256SUMS"
+          bash scripts/update.sh "$version" "$work/SHA256SUMS" "$released"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A akev winget
+          git commit -m "akev $version"
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+      - name: Test and publish the update
+        if: steps.update.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run test.yml --ref main
+          gh workflow run publish.yml --ref main
