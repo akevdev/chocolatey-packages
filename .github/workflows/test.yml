@@ -78,6 +78,14 @@ jobs:
           $out
           # Warnings return a non-zero code too; only a failed validation should fail the job.
           if ($out -notmatch 'Manifest validation succeeded') { exit 1 }
+      - name: Turn off SmartScreen (CI only)
+        # winget runs downloaded installers through SmartScreen. The installers aren't signed yet,
+        # so SmartScreen waits for someone to click "Run anyway", which never happens on a runner.
+        shell: pwsh
+        run: |
+          New-Item -Force 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' | Out-Null
+          Set-ItemProperty 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' EnableSmartScreen 0 -Type DWord
+          Set-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer' SmartScreenEnabled 'Off'
       - name: Install with winget
         timeout-minutes: 10
         shell: pwsh
