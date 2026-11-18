@@ -8,7 +8,7 @@
     <title>Akev</title>
     <authors>Akev contributors</authors>
     <projectUrl>https://akev.dev</projectUrl>
-    <iconUrl>https://cdn.jsdelivr.net/gh/akevdev/akev@v0.1.0/desktop/src-tauri/icons/128x128@2x.png</iconUrl>
+    <iconUrl>https://cdn.jsdelivr.net/gh/akevdev/akev/desktop/src-tauri/icons/128x128.png</iconUrl>
     <copyright>Akev contributors</copyright>
     <licenseUrl>https://github.com/akevdev/akev/blob/main/LICENSE</licenseUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
