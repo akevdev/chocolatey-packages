@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.12.0.schema.json
 
 PackageIdentifier: Akev.Akev
-PackageVersion: 0.1.0
+PackageVersion: 0.1.1
 InstallerLocale: en-US
 InstallerType: nullsoft
 Scope: user
@@ -15,7 +15,7 @@ FileExtensions:
 - har
 - saz
 ProductCode: Akev
-ReleaseDate: 2026-11-15
+ReleaseDate: 2026-11-19
 AppsAndFeaturesEntries:
 - DisplayName: Akev
   Publisher: akev
@@ -24,10 +24,10 @@ InstallationMetadata:
   DefaultInstallLocation: '%LocalAppData%\Akev'
 Installers:
 - Architecture: x64
-  InstallerUrl: https://github.com/akevdev/akev/releases/download/v0.1.0/Akev_0.1.0_x64-setup.exe
-  InstallerSha256: 69D0B2A08A1780B0653EE417C3271B1258B38717B13E2826BCB081BE8ED75DAC
+  InstallerUrl: https://github.com/akevdev/akev/releases/download/v0.1.1/Akev_0.1.1_x64-setup.exe
+  InstallerSha256: 7A51A255DDD6D8D4D22300F2C96CD3336C6E7397A6724B364B7DC0C4D436DDED
 - Architecture: arm64
-  InstallerUrl: https://github.com/akevdev/akev/releases/download/v0.1.0/Akev_0.1.0_arm64-setup.exe
-  InstallerSha256: D11C36669FC918D1DAD546EFE9729F1F4E2C9DED41AA018AE2DEF595C2A277CA
+  InstallerUrl: https://github.com/akevdev/akev/releases/download/v0.1.1/Akev_0.1.1_arm64-setup.exe
+  InstallerSha256: 26FE11A7C5771E17D213541A22C566E4D3B4FA17F57564A39252E6E764413FE0
 ManifestType: installer
 ManifestVersion: 1.12.0

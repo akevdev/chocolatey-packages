@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
   <metadata>
     <id>akev</id>
-    <version>0.1.0</version>
+    <version>0.1.1</version>
     <packageSourceUrl>https://github.com/akevdev/chocolatey-packages/tree/main/akev</packageSourceUrl>
     <owners>akevdev</owners>
     <title>Akev</title>
@@ -37,7 +37,7 @@ Mocking, rewriting, breakpoints and HAR import and export are free. Akev Pro (a 
 - This package installs the desktop app (MSI, all users). The x64 build is used on x64 Windows and the arm64 build on Windows on Arm.
 - The app updates itself after you confirm; `choco upgrade akev` works too.
 ]]></description>
-    <releaseNotes>https://github.com/akevdev/akev/releases/tag/v0.1.0</releaseNotes>
+    <releaseNotes>https://github.com/akevdev/akev/releases/tag/v0.1.1</releaseNotes>
   </metadata>
   <files>
     <file src="tools\**" target="tools" />
